@@ -29,7 +29,7 @@ export class YouTubeVideoAdapter {
   current(): HTMLVideoElement | null { return this.video; }
 
   private discover(): void {
-    const candidates = [...document.querySelectorAll("video")];
+    const candidates = Array.from(document.querySelectorAll("video"));
     const next = candidates.find((candidate) => !candidate.ended && candidate.readyState > 0) ?? candidates[0] ?? null;
     if (next !== this.video) {
       this.bind(next);
