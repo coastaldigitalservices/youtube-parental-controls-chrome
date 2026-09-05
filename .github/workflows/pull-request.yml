@@ -1,0 +1,20 @@
+name: Pull request checks
+on: pull_request
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run validate:manifest
+      - run: npm run validate:version
+      - run: npm run package:dry-run
+      - run: test -f dist/manifest.json
