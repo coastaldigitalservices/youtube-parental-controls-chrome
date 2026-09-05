@@ -1,0 +1,26 @@
+name: Publish privacy policy
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [store/privacy-policy.html]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}privacy-policy.html
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: mkdir public && cp store/privacy-policy.html public/privacy-policy.html
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: public }
+      - id: deployment
+        uses: actions/deploy-pages@v4

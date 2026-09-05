@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import pkg from "../package.json" with { type: "json" };
 
 const dryRun = process.argv.includes("--dry-run");
-const output = `artifacts/youtube-parental-control-v${pkg.version}.zip`;
+const output = `artifacts/youtube-parental-controls-v${pkg.version}.zip`;
 await mkdir("artifacts", { recursive: true });
 await rm(output, { force: true });
 const result = spawnSync("zip", ["-qr", `../${output}`, "."], { cwd: "dist", stdio: "inherit" });

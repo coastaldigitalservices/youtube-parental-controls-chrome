@@ -6,6 +6,7 @@ permissions:
   contents: write
 jobs:
   release:
+    environment: production
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,24 +16,64 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run validate:store
+      - run: npm run validate:version
       - run: npm run package
       - id: version
         run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Refuse a reused or non-increasing version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git fetch --tags --force
+          if git rev-parse "v$VERSION" >/dev/null 2>&1 || gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Release v$VERSION already exists; bump all version files before releasing." >&2
+            exit 1
+          fi
+          latest="$(git tag -l 'v[0-9]*' --sort=-v:refname | head -1)"
+          if [ -n "$latest" ] && [ "$(printf '%s\n%s\n' "${latest#v}" "$VERSION" | sort -V | tail -1)" != "$VERSION" ]; then
+            echo "Version $VERSION is not greater than latest tag $latest." >&2
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: youtube-parental-controls-v${{ steps.version.outputs.version }}
-          path: artifacts/youtube-parental-control-v${{ steps.version.outputs.version }}.zip
-      - name: Create versioned release if absent
+          path: artifacts/youtube-parental-controls-v${{ steps.version.outputs.version }}.zip
+      - name: Create versioned release
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           tag="v$VERSION"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "$tag already exists; leaving it unchanged."
+          git tag "$tag"
+          git push origin "$tag"
+          gh release create "$tag" "artifacts/youtube-parental-controls-v$VERSION.zip" --generate-notes --title "$tag"
+      - name: Detect Chrome Web Store configuration
+        id: cws
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        run: |
+          if [ -n "$CWS_CLIENT_ID" ] && [ -n "$CWS_CLIENT_SECRET" ] && [ -n "$CWS_REFRESH_TOKEN" ] && [ -n "$CWS_PUBLISHER_ID" ] && [ -n "$CWS_EXTENSION_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
-            git tag "$tag"
-            git push origin "$tag"
-            gh release create "$tag" "artifacts/youtube-parental-control-v$VERSION.zip" --generate-notes --title "$tag"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Chrome Web Store credentials are incomplete; GitHub release only." >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Upload and submit existing UNLISTED item through API v2
+        if: steps.cws.outputs.enabled == 'true'
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        run: node scripts/publish-cws-v2.mjs "artifacts/youtube-parental-controls-v${{ steps.version.outputs.version }}.zip"
