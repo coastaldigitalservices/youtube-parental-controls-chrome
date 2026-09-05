@@ -22,7 +22,8 @@ void chrome.runtime.sendMessage({ type: "get-status", bucket: "regular" }).then(
 element("complete-setup").addEventListener("click", () => void send({ type: "setup", pin: value("setup-pin"), dailyLimitSeconds: minutes("setup-limit"), shortsMode: "allow", shortsLimitSeconds: 900, schedule: { enabled: false, startMinute: 480, endMinute: 1200 } }));
 element("unlock-button").addEventListener("click", async () => { const response = await send({ type: "authenticate", pin: value("unlock-pin") }); if (response.ok) { const status = await chrome.runtime.sendMessage({ type: "get-status" }) as Response; if (status.state) render(status.state, true); } });
 element("save").addEventListener("click", () => void send({ type: "parent-mutation", mutation: { action: "save-settings", dailyLimitSeconds: minutes("daily-limit"), shortsMode: element<HTMLSelectElement>("shorts-mode").value as ShortsMode, shortsLimitSeconds: minutes("shorts-limit"), schedule: schedule() } }));
-for (const button of document.querySelectorAll<HTMLButtonElement>("[data-bonus]")) button.addEventListener("click", () => void send({ type: "parent-mutation", mutation: { action: "add-bonus", bucket: "regular", seconds: Number(button.dataset.bonus) } }));
+document.querySelectorAll<HTMLButtonElement>("[data-bonus]").forEach((button) =>
+  button.addEventListener("click", () => void send({ type: "parent-mutation", mutation: { action: "add-bonus", bucket: "regular", seconds: Number(button.dataset.bonus) } })));
 element("unlimited").addEventListener("click", () => void send({ type: "parent-mutation", mutation: { action: "unlimited-today" } }));
 element("reset-usage").addEventListener("click", () => { if (confirm("Reset all of today’s recorded usage?")) void send({ type: "parent-mutation", mutation: { action: "reset-usage" } }); });
 element("change-pin").addEventListener("click", () => void send({ type: "parent-mutation", mutation: { action: "change-pin", pin: value("new-pin") } }));
