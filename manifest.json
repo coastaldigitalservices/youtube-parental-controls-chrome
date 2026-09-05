@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "YouTube Parental Controls",
-  "version": "0.1.0",
-  "description": "Locally tracks real YouTube playback time.",
+  "version": "0.2.0",
+  "description": "Local parent-controlled YouTube limits, schedules, and Shorts controls.",
   "permissions": ["storage"],
   "host_permissions": ["https://www.youtube.com/*"],
   "background": { "service_worker": "background/service-worker.js", "type": "module" },
