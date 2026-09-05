@@ -45,3 +45,16 @@ test("mandatory restart regression reloads and continues persisted usage", async
   assert.equal(restored.usage.regularSeconds, 14);
   assert.ok(restored.usage.revision >= 2);
 });
+
+test("migrates the released schema 2 without losing controls, usage, or today's override", async () => {
+  const area = new MemoryStorage(); const now = new Date(2026, 8, 5, 12);
+  area.data[STORAGE_KEY] = { schemaVersion: 2, settings: { setupComplete: true, dailyLimitSeconds: 1800,
+    shortsMode: "block", shortsLimitSeconds: 600, schedule: { enabled: true, startMinute: 480, endMinute: 1200 }, pin: null },
+  usage: { date: localDate(now), regularSeconds: 321, shortsSeconds: 7, regularBonusSeconds: 300,
+    shortsBonusSeconds: 0, unlimitedToday: true, warningsShown: ["regular:900"], revision: 4, updatedAt: now.toISOString() } };
+  const state = await new StateStore(area, () => now).read();
+  assert.equal(state.schemaVersion, SCHEMA_VERSION); assert.equal(state.usage.regularSeconds, 321);
+  assert.equal(state.usage.unlimitedToday, true); assert.equal(state.settings.shortsMode, "block");
+  assert.deepEqual(state.settings.experience, { disableAutoplay: false, hideShorts: false, hideComments: false,
+    hideLiveChat: false, hideRecommendations: false, hideHomeFeed: false });
+});
