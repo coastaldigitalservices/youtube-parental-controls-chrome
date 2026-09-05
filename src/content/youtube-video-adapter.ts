@@ -1,5 +1,6 @@
 export interface VideoAdapterCallbacks {
   onPotentialChange(): void;
+  shouldBlockPlayback?(): boolean;
 }
 
 const MEDIA_EVENTS = ["play", "playing", "pause", "waiting", "stalled", "ended", "timeupdate"] as const;
@@ -7,7 +8,10 @@ const MEDIA_EVENTS = ["play", "playing", "pause", "waiting", "stalled", "ended",
 export class YouTubeVideoAdapter {
   private video: HTMLVideoElement | null = null;
   private readonly observer: MutationObserver;
-  private readonly eventHandler = (): void => this.callbacks.onPotentialChange();
+  private readonly eventHandler = (): void => {
+    if (this.callbacks.shouldBlockPlayback?.() && this.video && !this.video.paused) this.video.pause();
+    this.callbacks.onPotentialChange();
+  };
   private readonly navigationHandler = (): void => { this.discover(); this.callbacks.onPotentialChange(); };
 
   constructor(private readonly callbacks: VideoAdapterCallbacks) {
@@ -27,6 +31,7 @@ export class YouTubeVideoAdapter {
   }
 
   current(): HTMLVideoElement | null { return this.video; }
+  pause(): void { this.video?.pause(); }
 
   private discover(): void {
     const candidates = Array.from(document.querySelectorAll("video"));
