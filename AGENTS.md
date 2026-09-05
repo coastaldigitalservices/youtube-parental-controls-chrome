@@ -14,6 +14,7 @@
 - Generated `dist/`, `.build/`, `.test-dist/`, and `artifacts/` files are ignored and must not be committed.
 
 ## Releases and pull requests
+- Every change must include an appropriate SemVer version bump in all version files and a matching changelog entry.
 - Follow SemVer and Keep a Changelog. Synchronize versions in `package.json`, lockfile, manifest, artifact, tag, and release.
 - PRs must describe user-visible behavior, version impact, tests, manual accessibility/browser checks, permissions/security impact, and known gaps.
 - Before release, inspect the unpacked build and ZIP for unrelated files, source maps, secrets, test fixtures, remote requests, and development-only permissions.

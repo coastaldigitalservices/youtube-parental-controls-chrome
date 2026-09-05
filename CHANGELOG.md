@@ -2,6 +2,16 @@
 
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-09-05
+
+### Added
+- Chrome Web Store listing, privacy, submission, icon, and promotional assets.
+- Chrome Web Store API v2 publishing support, hosted privacy-policy deployment, and production package validation.
+
+### Changed
+- Release automation keeps the store item unlisted and limits Web Store uploads to release workflows.
+- Pull-request checks now validate store readiness without uploading or publishing.
+
 ## [0.3.0] - 2026-09-05
 
 ### Added
