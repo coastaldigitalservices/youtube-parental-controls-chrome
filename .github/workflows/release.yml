@@ -1,0 +1,38 @@
+name: Build and release
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run package
+      - id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: youtube-parental-controls-v${{ steps.version.outputs.version }}
+          path: artifacts/youtube-parental-control-v${{ steps.version.outputs.version }}.zip
+      - name: Create versioned release if absent
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          tag="v$VERSION"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "$tag already exists; leaving it unchanged."
+          else
+            git tag "$tag"
+            git push origin "$tag"
+            gh release create "$tag" "artifacts/youtube-parental-control-v$VERSION.zip" --generate-notes --title "$tag"
+          fi

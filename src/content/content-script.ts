@@ -24,12 +24,19 @@ function verify(force = false): void {
 async function refreshPolicy(): Promise<void> {
   const currentBucket = bucket();
   try {
-    const response = await chrome.runtime.sendMessage({ type: "get-status", bucket: currentBucket }) as { status?: PolicyStatus; warning?: number };
-    if (!response.status) return; blocked = !response.status.allowed;
+    const response = await chrome.runtime.sendMessage({ type: "get-status", bucket: currentBucket }) as { status?: PolicyStatus; warning?: number; state?: { settings?: { experience?: import("../shared/model.js").ExperienceControls } } };
+    if (!response.status) { renderReliabilityError(); return; } blocked = !response.status.allowed;
+    if (response.state?.settings?.experience) adapter.applyExperienceControls(response.state.settings.experience);
     if (blocked) { adapter.pause(); renderOverlay(response.status); } else removeOverlay();
     if (response.warning) showToast(`${formatDuration(response.warning)} of YouTube time remaining`);
     if (currentBucket !== lastBucket) { lastBucket = currentBucket; verify(true); }
-  } catch { /* The next heartbeat retries after a worker restart. */ }
+  } catch { renderReliabilityError(); /* The next heartbeat retries after a worker restart. */ }
+}
+
+function renderReliabilityError(): void {
+  adapter.pause(); blocked = true;
+  renderOverlay({ allowed: false, reason: "storage", usedSeconds: 0, limitSeconds: null,
+    remainingSeconds: null, nextReset: new Date(Date.now() + 60_000).toISOString(), nextAvailable: null, bucket: bucket() });
 }
 
 function renderOverlay(status: PolicyStatus): void {
@@ -41,8 +48,8 @@ function renderOverlay(status: PolicyStatus): void {
     style.textContent = `#yt-parental-controls-overlay{position:fixed;inset:0;z-index:2147483647;display:grid;place-items:center;background:rgba(10,15,25,.88);font:16px system-ui;color:#172033}#yt-parental-controls-overlay>div{max-width:440px;margin:24px;padding:32px;border-radius:20px;background:#fff;box-shadow:0 18px 60px #0008;text-align:center}#yt-parental-controls-overlay h2{font-size:27px;margin:0 0 12px}#yt-parental-controls-overlay button{border:0;border-radius:999px;padding:12px 20px;background:#2855d9;color:white;font-weight:700;cursor:pointer}`;
     document.documentElement.append(style, overlay); overlay.querySelector("button")?.addEventListener("click", () => void chrome.runtime.openOptionsPage());
   }
-  const title = status.reason === "shorts" ? "Shorts are turned off" : status.reason === "schedule" ? "YouTube is not available right now" : "Daily YouTube time is finished";
-  const detail = status.limitSeconds === null ? "Playback is paused by the family schedule." : `${formatDuration(status.usedSeconds)} used of ${formatDuration(status.limitSeconds)}.`;
+  const title = status.reason === "shorts" ? "Shorts are turned off" : status.reason === "schedule" ? "YouTube is not available right now" : status.reason === "storage" ? "Playback paused for safety" : "Daily YouTube time is finished";
+  const detail = status.reason === "storage" ? "The extension cannot verify the saved allowance. Reload this page or ask a parent for help." : status.limitSeconds === null ? "Playback is paused by the family schedule." : `${formatDuration(status.usedSeconds)} used of ${formatDuration(status.limitSeconds)}.`;
   const when = status.nextAvailable ?? status.nextReset; const date = new Date(when);
   const heading = overlay.querySelector("h2"); const detailNode = overlay.querySelector(".detail"); const next = overlay.querySelector(".next");
   if (heading) heading.textContent = title; if (detailNode) detailNode.textContent = detail; if (next) next.textContent = `Available ${date.toLocaleString()}.`;

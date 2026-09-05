@@ -1,6 +1,6 @@
 import type { Bucket, StoredState } from "./model.js";
 
-export type BlockReason = "setup" | "shorts" | "schedule" | "limit" | null;
+export type BlockReason = "setup" | "shorts" | "schedule" | "limit" | "storage" | null;
 export interface PolicyStatus { allowed: boolean; reason: BlockReason; usedSeconds: number; limitSeconds: number | null;
   remainingSeconds: number | null; nextReset: string; nextAvailable: string | null; bucket: Bucket }
 

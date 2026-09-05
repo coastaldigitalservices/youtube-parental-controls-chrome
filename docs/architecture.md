@@ -19,7 +19,7 @@ for fresh verification rather than backfilling an unknown interval.
 
 The single `parentalControlsState` object in `chrome.storage.local` contains:
 
-- `schemaVersion` (currently 1);
+- `schemaVersion` (currently 3);
 - settings, including nullable limits and nullable salted PBKDF2 metadata (never a
   raw PIN);
 - the current local-date usage record, with regular/Shorts counters, same-day bonus

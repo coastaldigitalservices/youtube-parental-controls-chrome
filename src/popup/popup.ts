@@ -13,5 +13,5 @@ void chrome.runtime.sendMessage({ type: "get-status", bucket: "regular" }).then(
   set("#reset", `Resets ${new Date(status.nextReset).toLocaleString()}`);
   const progress = document.querySelector<HTMLProgressElement>("#progress");
   if (progress) { progress.max = status.limitSeconds ?? Math.max(1, status.usedSeconds); progress.value = status.usedSeconds; progress.hidden = status.limitSeconds === null; }
-});
+}).catch(() => { set("#availability", "Status unavailable"); set("#remaining", "Playback will pause until saved time can be verified."); });
 document.querySelector("#settings")?.addEventListener("click", () => void chrome.runtime.openOptionsPage());

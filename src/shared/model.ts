@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export type Bucket = "regular" | "shorts";
 export type ShortsMode = "allow" | "block" | "separate";
@@ -24,6 +24,16 @@ export interface Settings {
   shortsLimitSeconds: number | null;
   schedule: Schedule;
   pin: PinDerivation | null;
+  experience: ExperienceControls;
+}
+
+export interface ExperienceControls {
+  disableAutoplay: boolean;
+  hideShorts: boolean;
+  hideComments: boolean;
+  hideLiveChat: boolean;
+  hideRecommendations: boolean;
+  hideHomeFeed: boolean;
 }
 
 export interface DailyUsage {
@@ -49,7 +59,7 @@ export interface PlaybackReport {
 }
 
 export type ParentMutation =
-  | { action: "save-settings"; dailyLimitSeconds: number | null; shortsMode: ShortsMode; shortsLimitSeconds: number | null; schedule: Schedule }
+  | { action: "save-settings"; dailyLimitSeconds: number | null; shortsMode: ShortsMode; shortsLimitSeconds: number | null; schedule: Schedule; experience: ExperienceControls }
   | { action: "add-bonus"; bucket: Bucket; seconds: 300 | 900 | 1800 }
   | { action: "unlimited-today" }
   | { action: "reset-usage" }
@@ -94,7 +104,14 @@ export function isStoredState(value: unknown): value is StoredState {
     Number.isInteger(u.revision) && u.revision >= 0 && typeof u.updatedAt === "string" &&
     typeof s.setupComplete === "boolean" && validLimit(s.dailyLimitSeconds) && validLimit(s.shortsLimitSeconds) &&
     (s.shortsMode === "allow" || s.shortsMode === "block" || s.shortsMode === "separate") &&
-    isSchedule(s.schedule) && (s.pin === null || isPin(s.pin));
+    isSchedule(s.schedule) && isExperienceControls(s.experience) && (s.pin === null || isPin(s.pin));
+}
+
+export function isExperienceControls(value: unknown): value is ExperienceControls {
+  if (typeof value !== "object" || value === null) return false;
+  const controls = value as Partial<ExperienceControls>;
+  return [controls.disableAutoplay, controls.hideShorts, controls.hideComments, controls.hideLiveChat,
+    controls.hideRecommendations, controls.hideHomeFeed].every((item) => typeof item === "boolean");
 }
 
 function isPin(value: unknown): value is PinDerivation {

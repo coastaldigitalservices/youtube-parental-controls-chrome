@@ -1,7 +1,7 @@
 import { enrollPin, verifyPin } from "../shared/pin.js";
 import { evaluatePolicy, type PolicyStatus } from "../shared/policy.js";
 import { defaultSettings, type StateStore } from "../shared/storage.js";
-import type { Bucket, ParentMutation, Schedule, ShortsMode, StoredState } from "../shared/model.js";
+import { isExperienceControls, type Bucket, type ParentMutation, type Schedule, type ShortsMode, type StoredState } from "../shared/model.js";
 
 export interface SetupInput { pin: string; dailyLimitSeconds: number | null; shortsMode: ShortsMode; shortsLimitSeconds: number | null; schedule: Schedule }
 export interface CommandResult { ok: boolean; error?: string; status?: PolicyStatus; state?: StoredState; warning?: number }
@@ -18,7 +18,8 @@ export class ParentController {
     let verifier;
     try { verifier = await enrollPin(input.pin); } catch (caught) { return { ok: false, error: caught instanceof Error ? caught.message : "Invalid PIN." }; }
     const state = await this.store.update((draft) => { draft.settings = { setupComplete: true, dailyLimitSeconds: input.dailyLimitSeconds,
-      shortsMode: input.shortsMode, shortsLimitSeconds: input.shortsLimitSeconds, schedule: input.schedule, pin: verifier }; });
+      shortsMode: input.shortsMode, shortsLimitSeconds: input.shortsLimitSeconds, schedule: input.schedule, pin: verifier,
+      experience: defaultSettings().experience }; });
     this.authenticatedUntil = this.clock().getTime() + this.sessionMs;
     return { ok: true, state };
   }
@@ -43,9 +44,11 @@ export class ParentController {
     if (mutation.action === "save-settings") {
       const error = validateSettings(mutation.dailyLimitSeconds, mutation.shortsMode, mutation.shortsLimitSeconds, mutation.schedule);
       if (error) return { ok: false, error };
+      if (!isExperienceControls(mutation.experience)) return { ok: false, error: "Invalid YouTube experience controls." };
       return { ok: true, state: await this.store.update((state) => {
         state.settings.dailyLimitSeconds = mutation.dailyLimitSeconds; state.settings.shortsMode = mutation.shortsMode;
         state.settings.shortsLimitSeconds = mutation.shortsLimitSeconds; state.settings.schedule = mutation.schedule;
+        state.settings.experience = mutation.experience;
       }) };
     }
     return { ok: true, state: await this.store.update((state) => {
