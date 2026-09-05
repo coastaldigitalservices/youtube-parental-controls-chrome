@@ -1,0 +1,22 @@
+{
+  "name": "youtube-parental-controls",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-only, restart-safe YouTube watch-time controls",
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "lint": "node scripts/lint.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build:test && node --test .test-dist/tests/*.test.js",
+    "build:test": "node scripts/clean.mjs .test-dist && tsc -p tsconfig.test.json",
+    "build": "node scripts/build.mjs",
+    "validate:manifest": "node scripts/validate-manifest.mjs",
+    "validate:version": "node scripts/validate-version.mjs",
+    "package": "node scripts/package.mjs",
+    "package:dry-run": "node scripts/package.mjs --dry-run",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run validate:manifest && npm run validate:version && npm run package:dry-run"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2"
+  }
+}

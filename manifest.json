@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Parental Controls",
+  "version": "0.1.0",
+  "description": "Locally tracks real YouTube playback time.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.youtube.com/*"],
+  "background": { "service_worker": "background/service-worker.js", "type": "module" },
+  "content_scripts": [{
+    "matches": ["https://www.youtube.com/*"],
+    "js": ["content-bootstrap.js"],
+    "run_at": "document_idle"
+  }],
+  "web_accessible_resources": [{
+    "resources": ["content/*.js", "shared/*.js"],
+    "matches": ["https://www.youtube.com/*"]
+  }],
+  "action": { "default_popup": "popup/index.html" },
+  "options_page": "options/index.html"
+}
