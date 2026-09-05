@@ -14,7 +14,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - run: npm run validate:manifest
+      - run: npm run validate:store
       - run: npm run validate:version
-      - run: npm run package:dry-run
-      - run: test -f dist/manifest.json
+      - run: npm run package
+      - name: Verify ZIP version and contents
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          test -f "artifacts/youtube-parental-controls-v$version.zip"
+          unzip -p "artifacts/youtube-parental-controls-v$version.zip" manifest.json | VERSION="$version" node -e 'let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{if(JSON.parse(s).version!==process.env.VERSION)process.exit(1)})'

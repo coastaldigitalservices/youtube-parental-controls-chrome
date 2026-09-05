@@ -28,14 +28,15 @@ Open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**,
 
 ```sh
 npm run check             # lint, types, tests, build, manifest/version, package dry run
-npm run package           # artifacts/youtube-parental-control-vX.Y.Z.zip
+npm run validate:store    # audit the unpacked production extension
+npm run package           # artifacts/youtube-parental-controls-vX.Y.Z.zip
 ```
 
 For a clean-profile smoke test, load `dist/`, complete setup, confirm paused media does not count, play a standard video and a Short, exhaust a short test limit, restart Chrome, verify usage remains, then authenticate and add five minutes. Test keyboard-only navigation and spot-check the popup and overlay with ChromeVox. Stable Chrome on Linux is the closest automated/developer substitute when Chromebook hardware is unavailable; final ChromeOS hardware behavior remains a manual release check.
 
 ## Releases
 
-Pull requests run a non-publishing production dry run. A merge to `main` runs the locked install and complete validation pipeline, uploads the versioned ZIP, then idempotently creates the matching tag and GitHub Release. Versions follow SemVer and must match `package.json` and `manifest.json`.
+Pull requests run a non-publishing production dry run. A merge to `main` runs the locked install and complete validation pipeline, uploads the versioned ZIP, creates the matching tag and GitHub Release, and optionally submits the existing Chrome Web Store item through API v2. Versions follow SemVer, must increase, and must match `package.json` and `manifest.json`. See [the Chrome Web Store guide](docs/CHROME_WEB_STORE.md).
 
 ## Known limitations
 

@@ -6,4 +6,5 @@ if (run.status !== 0) process.exit(run.status ?? 1);
 await mkdir("dist", { recursive: true });
 await cp(".build", "dist", { recursive: true });
 await cp("static", "dist", { recursive: true });
+await cp("icons", "dist/icons", { recursive: true });
 await cp("manifest.json", "dist/manifest.json");

@@ -17,3 +17,9 @@
 - Follow SemVer and Keep a Changelog. Synchronize versions in `package.json`, lockfile, manifest, artifact, tag, and release.
 - PRs must describe user-visible behavior, version impact, tests, manual accessibility/browser checks, permissions/security impact, and known gaps.
 - Before release, inspect the unpacked build and ZIP for unrelated files, source maps, secrets, test fixtures, remote requests, and development-only permissions.
+- Never commit Chrome Web Store credentials or other secrets; all publishing credentials belong in GitHub secrets.
+- Use Chrome Web Store API v2, and keep the store item **UNLISTED** unless explicitly directed otherwise.
+- Privacy disclosures must always match the code's actual data handling.
+- Every production build must pass `npm run validate:store`; store-only assets must not enter the runtime package unless Chrome requires them.
+- Never broaden runtime permissions merely to simplify publishing.
+- Web Store upload may occur only from the main/release workflow. Pull-request workflows must never upload or publish.
