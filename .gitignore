@@ -4,3 +4,4 @@ artifacts/
 .build/
 .test-dist/
 *.log
+**/.DS_Store
