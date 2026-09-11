@@ -4,6 +4,8 @@
 - The timer is the product: count real elapsed time only when video media time progresses.
 - Only `StateStore` may directly read or write durable extension state. Treat the MV3 worker as disposable.
 - Never sum concurrent playback. Do not infer usage across an unobserved worker suspension.
+- The background service worker must never be the authoritative stopwatch for active playback. Manifest V3 workers are ephemeral. Elapsed watch time must be reported explicitly from the content context and remain correct across arbitrary worker suspension/restart.
+- Content contexts report sequenced wall-clock watch intervals. `StateStore` durably deduplicates source sequences and merges overlap in a bounded rolling coverage window so concurrent tabs consume time only once.
 - Keep YouTube DOM selectors isolated in `src/content/youtube-video-adapter.ts`; cosmetic failures must never affect accounting or enforcement.
 - Keep the product local-only: no remote code, backend, analytics, telemetry, raw PINs, or broader host permissions.
 

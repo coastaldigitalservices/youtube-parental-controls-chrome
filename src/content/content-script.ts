@@ -1,24 +1,48 @@
-import type { Bucket, PlaybackReport } from "../shared/model.js";
+import type { Bucket, WatchInterval } from "../shared/model.js";
 import type { PolicyStatus } from "../shared/policy.js";
 import { formatDuration } from "../shared/format.js";
 import { YouTubeVideoAdapter } from "./youtube-video-adapter.js";
 
-const VERIFY_MS = 2_000; const HEARTBEAT_MS = 5_000; const MIN_PROGRESS_SECONDS = 0.05; const sourceId = crypto.randomUUID();
-let priorMediaTime: number | null = null; let lastProgressAt = 0; let lastSentProgressing: boolean | null = null; let lastSentAt = 0;
+const VERIFY_MS = 2_000; const MIN_PROGRESS_SECONDS = 0.05; const MAX_SAMPLE_GAP_MS = 10_000; const sourceId = crypto.randomUUID();
+const DEBUG = new URLSearchParams(location.search).get("ytpcDebug") === "1";
+let priorMediaTime: number | null = null; let priorWallTime: number | null = null; let sequence = 0;
+const outbox: WatchInterval[] = []; let sending = false;
 let blocked = false; let lastBucket: Bucket = bucket();
 const adapter = new YouTubeVideoAdapter({ onPotentialChange: () => { verify(true); void refreshPolicy(); }, shouldBlockPlayback: () => blocked });
 function bucket(): Bucket { return location.pathname.startsWith("/shorts/") ? "shorts" : "regular"; }
 
 function verify(force = false): void {
-  const now = Date.now(); const video = adapter.current(); let advancing = false;
+  const now = Date.now(); const video = adapter.current(); const currentBucket = bucket(); let advancing = false;
   if (video && !video.paused && !video.ended && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && !blocked) {
-    if (priorMediaTime !== null && video.currentTime - priorMediaTime >= MIN_PROGRESS_SECONDS) lastProgressAt = now;
-    advancing = lastProgressAt > 0 && now - lastProgressAt <= VERIFY_MS * 1.5; priorMediaTime = video.currentTime;
-  } else { priorMediaTime = video?.currentTime ?? null; lastProgressAt = 0; }
-  if (force || advancing !== lastSentProgressing || now - lastSentAt >= HEARTBEAT_MS) {
-    const report: PlaybackReport = { type: "playback-state", sourceId, bucket: bucket(), progressing: advancing, observedAt: now };
-    void chrome.runtime.sendMessage(report).catch(() => undefined); lastSentProgressing = advancing; lastSentAt = now;
+    advancing = priorMediaTime !== null && video.currentTime - priorMediaTime >= MIN_PROGRESS_SECONDS;
+    const elapsed = priorWallTime === null ? 0 : now - priorWallTime;
+    if (advancing && elapsed > 0 && elapsed <= MAX_SAMPLE_GAP_MS && currentBucket === lastBucket) {
+      outbox.push({ type: "watch-interval", sourceId, sequence: sequence++, bucket: currentBucket,
+        startMs: priorWallTime as number, endMs: now, ...(DEBUG ? { debug: true as const } : {}) });
+      void pumpOutbox();
+    }
+    priorMediaTime = video.currentTime; priorWallTime = now;
+  } else { priorMediaTime = video?.currentTime ?? null; priorWallTime = null; }
+  if (force && !advancing) {
+    // Events such as pause, waiting, navigation, and policy blocks reset the sampling boundary;
+    // already queued intervals are still retried with their original sequence number.
+    priorWallTime = null;
   }
+  if (DEBUG) console.debug("[parental-controls] content heartbeat", { now, mediaTime: video?.currentTime,
+    advancing, bucket: currentBucket, blocked, pendingIntervals: outbox.length });
+}
+
+async function pumpOutbox(): Promise<void> {
+  if (sending) return; sending = true;
+  try {
+    while (outbox.length > 0) {
+      const response = await chrome.runtime.sendMessage(outbox[0]) as { ok?: boolean };
+      if (!response?.ok) break;
+      if (DEBUG) console.debug("[parental-controls] interval persisted", outbox[0], response);
+      outbox.shift();
+    }
+  } catch { /* Keep the identical interval and sequence for the next event/tick retry. */ }
+  finally { sending = false; }
 }
 
 async function refreshPolicy(): Promise<void> {
@@ -29,7 +53,7 @@ async function refreshPolicy(): Promise<void> {
     if (response.state?.settings?.experience) adapter.applyExperienceControls(response.state.settings.experience);
     if (blocked) { adapter.pause(); renderOverlay(response.status); } else removeOverlay();
     if (response.warning) showToast(`${formatDuration(response.warning)} of YouTube time remaining`);
-    if (currentBucket !== lastBucket) { lastBucket = currentBucket; verify(true); }
+    if (currentBucket !== lastBucket) { verify(true); lastBucket = currentBucket; priorWallTime = null; }
   } catch { renderReliabilityError(); /* The next heartbeat retries after a worker restart. */ }
 }
 
@@ -61,5 +85,6 @@ function showToast(message: string): void {
   document.documentElement.append(toast); setTimeout(() => toast.remove(), 5_000);
 }
 
-adapter.start(); setInterval(() => { verify(); void refreshPolicy(); }, VERIFY_MS); void refreshPolicy();
-window.addEventListener("pagehide", () => { const report: PlaybackReport = { type: "playback-state", sourceId, bucket: bucket(), progressing: false, observedAt: Date.now() }; void chrome.runtime.sendMessage(report).catch(() => undefined); });
+adapter.start(); setInterval(() => { verify(); void pumpOutbox(); void refreshPolicy(); }, VERIFY_MS); void refreshPolicy();
+document.addEventListener("visibilitychange", () => { verify(true); void pumpOutbox(); });
+window.addEventListener("pagehide", () => { verify(true); void pumpOutbox(); });

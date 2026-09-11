@@ -2,6 +2,13 @@
 
 All notable changes follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] - 2026-09-11
+
+### Fixed
+- Fixed severe watch-time undercounting on ChromeOS caused by Manifest V3 background service-worker suspension.
+- Playback time is now measured in the YouTube content context and persisted reliably across worker restarts.
+- Sequenced interval deduplication and overlap merging preserve single-count accounting across retries and concurrent tabs.
+
 ## [0.5.0] - 2026-09-08
 
 ### Added

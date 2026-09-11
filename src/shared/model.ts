@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export type Bucket = "regular" | "shorts";
 export type ShortsMode = "allow" | "block" | "separate";
@@ -48,14 +48,20 @@ export interface DailyUsage {
   updatedAt: string;
 }
 
-export interface StoredState { schemaVersion: typeof SCHEMA_VERSION; settings: Settings; usage: DailyUsage }
+export interface CoveredInterval { startMs: number; endMs: number }
+export interface SourceSequence { sequence: number; updatedAt: number }
+export interface AccountingMetadata { sources: Record<string, SourceSequence>; coverage: CoveredInterval[] }
 
-export interface PlaybackReport {
-  type: "playback-state";
+export interface StoredState { schemaVersion: typeof SCHEMA_VERSION; settings: Settings; usage: DailyUsage; accounting: AccountingMetadata }
+
+export interface WatchInterval {
+  type: "watch-interval";
   sourceId: string;
+  sequence: number;
   bucket: Bucket;
-  progressing: boolean;
-  observedAt: number;
+  startMs: number;
+  endMs: number;
+  debug?: true;
 }
 
 export type ParentMutation =
@@ -66,7 +72,7 @@ export type ParentMutation =
   | { action: "change-pin"; pin: string }
   | { action: "reset-all"; confirmation: "RESET" };
 
-export type ExtensionMessage = PlaybackReport | { type: "get-status"; bucket?: Bucket } |
+export type ExtensionMessage = WatchInterval | { type: "get-status"; bucket?: Bucket } |
   { type: "setup"; pin: string; dailyLimitSeconds: number | null; shortsMode: ShortsMode; shortsLimitSeconds: number | null; schedule: Schedule } |
   { type: "authenticate"; pin: string } | { type: "parent-mutation"; mutation: ParentMutation };
 
@@ -75,12 +81,13 @@ const finiteNonnegative = (value: unknown): value is number =>
 const validLimit = (value: unknown): value is number | null =>
   value === null || (finiteNonnegative(value) && value <= 480 * 60);
 
-export function isPlaybackReport(value: unknown): value is PlaybackReport {
+export function isWatchInterval(value: unknown, receivedAt = Date.now()): value is WatchInterval {
   if (typeof value !== "object" || value === null) return false;
-  const report = value as Partial<PlaybackReport>;
-  return report.type === "playback-state" && typeof report.sourceId === "string" && report.sourceId.length > 0 &&
-    (report.bucket === "regular" || report.bucket === "shorts") && typeof report.progressing === "boolean" &&
-    finiteNonnegative(report.observedAt);
+  const report = value as Partial<WatchInterval>;
+  return report.type === "watch-interval" && typeof report.sourceId === "string" && report.sourceId.length > 0 && report.sourceId.length <= 128 &&
+    Number.isSafeInteger(report.sequence) && (report.sequence ?? -1) >= 0 && (report.bucket === "regular" || report.bucket === "shorts") &&
+    finiteNonnegative(report.startMs) && finiteNonnegative(report.endMs) && (report.endMs ?? 0) > (report.startMs ?? 0) &&
+    (report.endMs ?? 0) - (report.startMs ?? 0) <= 10_000 && (report.endMs ?? Infinity) <= receivedAt + 60_000;
 }
 
 export function isSchedule(value: unknown): value is Schedule {
@@ -95,7 +102,7 @@ export function isSchedule(value: unknown): value is Schedule {
 export function isStoredState(value: unknown): value is StoredState {
   if (typeof value !== "object" || value === null) return false;
   const state = value as Partial<StoredState>;
-  if (state.schemaVersion !== SCHEMA_VERSION || !state.settings || !state.usage) return false;
+  if (state.schemaVersion !== SCHEMA_VERSION || !state.settings || !state.usage || !state.accounting) return false;
   const u = state.usage; const s = state.settings;
   return /^\d{4}-\d{2}-\d{2}$/.test(u.date) && finiteNonnegative(u.regularSeconds) &&
     finiteNonnegative(u.shortsSeconds) && finiteNonnegative(u.regularBonusSeconds) &&
@@ -104,7 +111,15 @@ export function isStoredState(value: unknown): value is StoredState {
     Number.isInteger(u.revision) && u.revision >= 0 && typeof u.updatedAt === "string" &&
     typeof s.setupComplete === "boolean" && validLimit(s.dailyLimitSeconds) && validLimit(s.shortsLimitSeconds) &&
     (s.shortsMode === "allow" || s.shortsMode === "block" || s.shortsMode === "separate") &&
-    isSchedule(s.schedule) && isExperienceControls(s.experience) && (s.pin === null || isPin(s.pin));
+    isSchedule(s.schedule) && isExperienceControls(s.experience) && (s.pin === null || isPin(s.pin)) && isAccounting(state.accounting);
+}
+
+function isAccounting(value: unknown): value is AccountingMetadata {
+  if (typeof value !== "object" || value === null) return false;
+  const metadata = value as Partial<AccountingMetadata>;
+  return typeof metadata.sources === "object" && metadata.sources !== null && Object.values(metadata.sources).every((item) =>
+    Number.isSafeInteger(item.sequence) && item.sequence >= 0 && finiteNonnegative(item.updatedAt)) && Array.isArray(metadata.coverage) &&
+    metadata.coverage.every((item) => finiteNonnegative(item.startMs) && finiteNonnegative(item.endMs) && item.endMs > item.startMs);
 }
 
 export function isExperienceControls(value: unknown): value is ExperienceControls {
