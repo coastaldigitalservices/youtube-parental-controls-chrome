@@ -58,3 +58,15 @@ test("migrates the released schema 2 without losing controls, usage, or today's 
   assert.deepEqual(state.settings.experience, { disableAutoplay: false, hideShorts: false, hideComments: false,
     hideLiveChat: false, hideRecommendations: false, hideHomeFeed: false });
 });
+
+test("migrates released schema 3 and initializes compact interval metadata", async () => {
+  const area = new MemoryStorage(); const now = new Date(2026, 8, 5, 12);
+  area.data[STORAGE_KEY] = { schemaVersion: 3, settings: { ...({ setupComplete: false, dailyLimitSeconds: 3600,
+    shortsMode: "allow", shortsLimitSeconds: 900, schedule: { enabled: false, startMinute: 480, endMinute: 1200 }, pin: null,
+    experience: { disableAutoplay: false, hideShorts: false, hideComments: false, hideLiveChat: false,
+      hideRecommendations: false, hideHomeFeed: false } }) }, usage: { date: localDate(now), regularSeconds: 12,
+    shortsSeconds: 3, regularBonusSeconds: 0, shortsBonusSeconds: 0, unlimitedToday: false, warningsShown: [], revision: 1,
+    updatedAt: now.toISOString() } };
+  const state = await new StateStore(area, () => now).read();
+  assert.equal(state.usage.regularSeconds, 12); assert.deepEqual(state.accounting, { sources: {}, coverage: [] });
+});

@@ -13,7 +13,7 @@ A local-only Manifest V3 Chrome extension that counts **actual progressing YouTu
 
 ## Architecture and privacy
 
-A YouTube content script verifies media-time progress and reports renewable leases. A disposable service worker aggregates those leases, evaluates policy, and writes through the sole durable-state boundary, `StateStore`, every six seconds. See [the architecture](docs/architecture.md) and [privacy disclosure](PRIVACY.md). The extension requests only local storage and `https://www.youtube.com/*` access; extension-owned code makes no network requests.
+A YouTube content script verifies media-time progress and reports explicit, sequenced wall-clock watch intervals. A disposable service worker wakes for each report; `StateStore` atomically deduplicates retries, merges concurrent-tab overlap, and persists usage. See [the architecture](docs/architecture.md) and [privacy disclosure](PRIVACY.md). The extension requests only local storage and `https://www.youtube.com/*` access; extension-owned code makes no network requests.
 
 ## Install an unpacked development build
 
